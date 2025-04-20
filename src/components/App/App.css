@@ -1,0 +1,13 @@
+/* App.css */
+
+/* Removed all custom styles to rely on Material-UI's dark mode theme */
+
+/* Ensure the parent container of the DataGrid has a defined height */
+.dataGridContainer {
+  height: 400px; /* Set a fixed height or use a percentage */
+  width: 100%;
+}
+/* Apply Nunito font globally */
+* {
+  font-family: "Nunito", Arial, sans-serif;
+}
