@@ -10,6 +10,12 @@ This project is the frontend for the Code Push application, which facilitates se
 - View update history and status.
 - Seamless integration with the backend API.
 
+## Screenshot
+
+Below is a screenshot of the application:
+
+![Application Screenshot](screenshot.png)
+
 ## Security Note
 
 This frontend is **not protected** by default. It should be deployed behind an SSO proxy or integrated with your own login system to ensure secure access.
