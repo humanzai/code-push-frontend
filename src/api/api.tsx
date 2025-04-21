@@ -70,3 +70,11 @@ export const updateDeploymentRelease = async (
   );
   return response.data;
 };
+
+export const getDeploymentKeys = async (appName: string) => {
+  const response = await axios.get(`/apps/${appName}/deployments`);
+  return response.data.deployments.map((deployment: any) => ({
+    name: deployment.name,
+    key: deployment.key,
+  }));
+};

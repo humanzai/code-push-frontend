@@ -7,7 +7,11 @@ import Tab from "@mui/material/Tab";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditDeployment from "../EditDeployment/EditDeployment";
 import RollbackModal from "../RollbackModal/RollbackModal";
-import { getDeploymentHistory, rollbackToPreviousVersion } from "../../api/api";
+import {
+  getDeploymentHistory,
+  rollbackToPreviousVersion,
+  getDeploymentMetrics,
+} from "../../api/api";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
@@ -27,6 +31,8 @@ import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import Chip from "@mui/material/Chip";
 import { toast } from "react-toastify";
+import DeploymentKeysModal from "../DeploymentKeysModal/DeploymentKeysModal";
+import { getDeploymentKeys } from "../../api/api";
 
 interface DeploymentTableProps {
   app: any;
@@ -41,6 +47,11 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
   const [selectedDeployment, setSelectedDeployment] = useState(null);
   const [sortOption, setSortOption] = useState<string>("uploadTime"); // Default sorting by date
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc"); // Default to descending
+  const [keysModalOpen, setKeysModalOpen] = useState(false);
+  const [deploymentKeys, setDeploymentKeys] = useState<
+    { name: string; key: string }[] | null
+  >(null);
+  const [keysLoading, setKeysLoading] = useState(false);
 
   const handleOpenModal = (deployment) => {
     setSelectedDeployment(deployment);
@@ -117,6 +128,24 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
     toast.success(`Rollback to version ${label} initiated`);
   };
 
+  const handleOpenKeysModal = async () => {
+    setKeysModalOpen(true);
+    setKeysLoading(true);
+    try {
+      const keys = await getDeploymentKeys(app.name); // Fetch keys for the current app
+      setDeploymentKeys(keys);
+    } catch (error) {
+      console.error("Error fetching deployment keys:", error);
+    } finally {
+      setKeysLoading(false);
+    }
+  };
+
+  const handleCloseKeysModal = () => {
+    setKeysModalOpen(false);
+    setDeploymentKeys(null);
+  };
+
   return (
     <div
       key={keyName}
@@ -142,6 +171,18 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
             style={{ color: "#b39ddb" }}
           />
         ))}
+        <Box style={{ display: "flex", flex: 1, justifyContent: "flex-end" }}>
+          <Button
+            style={{
+              justifySelf: "flex-end",
+              display: "inline-flex",
+            }}
+            variant="text"
+            onClick={handleOpenKeysModal}
+          >
+            View Deployment Keys
+          </Button>
+        </Box>
       </Tabs>
 
       {loading ? (
@@ -380,6 +421,13 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
         deployment={selectedDeployment}
         callback={fetchDeploymentHistory}
         rollbackCallback={handleRollbackCallback}
+      />
+
+      <DeploymentKeysModal
+        open={keysModalOpen}
+        onClose={handleCloseKeysModal}
+        keys={deploymentKeys}
+        loading={keysLoading}
       />
     </div>
   );

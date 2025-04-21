@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getApps } from "../../api/api";
+import { getApps, getDeploymentKeys } from "../../api/api";
 import { Link, Route, Router, Switch } from "wouter";
 import DeploymentTable from "../DeploymentTable/DeploymentTable";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
@@ -9,6 +9,8 @@ import Box from "@mui/material/Box";
 import "./App.css";
 import { useLocation } from "wouter";
 import AppsIcon from "@mui/icons-material/Apps";
+import DeploymentKeysModal from "../DeploymentKeysModal/DeploymentKeysModal";
+import Button from "@mui/material/Button";
 
 const darkTheme = createTheme({
   typography: {
@@ -24,27 +26,27 @@ const darkTheme = createTheme({
           body: {
             backgroundColor: "#1e1e2f", // Purple tint for the entire app
             color: "#ffffff",
-            },
-          },
           },
         },
-        MuiButton: {
-          styleOverrides: {
-          root: {
-            "&.MuiButton-contained": {
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          "&.MuiButton-contained": {
             backgroundColor: "#7c4dff", // Unified button color for contained variant
             color: "#ffffff",
             "&:hover": {
               backgroundColor: "#9575cd", // Lighter hover effect
             },
-            },
-          },
           },
         },
-        MuiDialog: {
-          styleOverrides: {
-          paper: {
-            backgroundColor: "#2c2c3e", // Purple tint for modals
+      },
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: "#2c2c3e", // Purple tint for modals
           color: "#ffffff",
         },
       },
@@ -87,6 +89,11 @@ const App: React.FC = () => {
   const [apps, setApps] = useState<App[]>([]);
   const [loading, setLoading] = useState(false);
   const [location, setLocation] = useLocation();
+  const [keysModalOpen, setKeysModalOpen] = useState(false);
+  const [deploymentKeys, setDeploymentKeys] = useState<
+    { name: string; key: string }[] | null
+  >(null);
+  const [keysLoading, setKeysLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -111,6 +118,24 @@ const App: React.FC = () => {
       setLocation(`/${apps[0].name}`);
     }
   }, [apps, location, setLocation]);
+
+  const handleOpenKeysModal = async () => {
+    setKeysModalOpen(true);
+    setKeysLoading(true);
+    try {
+      const keys = await getDeploymentKeys(apps[0]?.name); // Fetch keys for the first app
+      setDeploymentKeys(keys);
+    } catch (error) {
+      console.error("Error fetching deployment keys:", error);
+    } finally {
+      setKeysLoading(false);
+    }
+  };
+
+  const handleCloseKeysModal = () => {
+    setKeysModalOpen(false);
+    setDeploymentKeys(null);
+  };
 
   if (loading) {
     return <div className="loading">Loading...</div>;
