@@ -33,6 +33,22 @@ export const rollbackDeployment = async (
   deploymentName: string,
   label: string
 ) => {
+  // Fetch deployment history to validate app version
+  const history = await getDeploymentHistory(appName, deploymentName);
+  const targetVersion = history.find((entry: any) => entry.label === label);
+
+  if (!targetVersion) {
+    throw new Error(`Label ${label} not found in deployment history.`);
+  }
+
+  const currentVersion = history[0]?.appVersion; // Assuming the first entry is the latest
+  if (targetVersion.appVersion !== currentVersion) {
+    throw new Error(
+      `Cannot perform rollback to a different app version. Current: ${currentVersion}, Target: ${targetVersion.appVersion}`
+    );
+  }
+
+  // Perform rollback if app versions match
   await axios.post(`/apps/${appName}/deployments/${deploymentName}/rollback`, {
     label,
   });

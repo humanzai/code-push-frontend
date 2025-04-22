@@ -9,8 +9,8 @@ import EditDeployment from "../EditDeployment/EditDeployment";
 import RollbackModal from "../RollbackModal/RollbackModal";
 import {
   getDeploymentHistory,
+  rollbackDeployment,
   rollbackToPreviousVersion,
-  getDeploymentMetrics,
 } from "../../api/api";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -124,8 +124,18 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
     />
   );
 
-  const handleRollbackCallback = (label: string) => {
-    toast.success(`Rollback to version ${label} initiated`);
+  const handleRollbackCallback = async (
+    label: string,
+    callbackSuccess?: () => void,
+    callbackFail?: () => void
+  ) => {
+    try {
+      await rollbackDeployment(app.name, app.deployments[activeTab], label);
+      callbackSuccess && callbackSuccess();
+    } catch (error) {
+      console.error("Error during rollback:", error);
+      callbackFail && callbackFail(error);
+    }
   };
 
   const handleOpenKeysModal = async () => {

@@ -22,7 +22,11 @@ interface EditDeploymentProps {
   onClose: () => void;
   callback: () => void;
   open: boolean;
-  rollbackCallback: (label: string) => void;
+  rollbackCallback: (
+    label: string,
+    successCallback?: () => void,
+    failCallback?: () => void
+  ) => void;
 }
 
 const EditDeployment: React.FC<EditDeploymentProps> = ({
@@ -100,9 +104,16 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
   };
 
   const handleConfirmRollback = () => {
-    rollbackCallback(row.label);
+    rollbackCallback(
+      row.label,
+      () => {
+        toast.success(`Rollback to version ${row.label} initiated`);
+      },
+      (error) => {
+        toast.error(`Failed to rollback to version ${row.label}: ${error}`);
+      }
+    );
     setOpenRollbackModal(false);
-    toast.success(`Rollback to version ${row.label} initiated`);
     onClose();
   };
 
@@ -195,7 +206,10 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
             style={{ display: "flex", flexDirection: "column", gap: "20px" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip title="Specify the version of the app for this deployment" arrow>
+              <Tooltip
+                title="Specify the version of the app for this deployment"
+                arrow
+              >
                 <IconButton size="small" sx={{ color: "#b39ddb" }}>
                   <InfoIcon />
                 </IconButton>
@@ -237,7 +251,10 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip title="Enable gradual rollout of the deployment to a percentage of users" arrow>
+              <Tooltip
+                title="Enable gradual rollout of the deployment to a percentage of users"
+                arrow
+              >
                 <IconButton size="small" sx={{ color: "#b39ddb" }}>
                   <InfoIcon />
                 </IconButton>
@@ -282,7 +299,10 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
               </div>
             )}
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip title="Mark this deployment as mandatory for all users" arrow>
+              <Tooltip
+                title="Mark this deployment as mandatory for all users"
+                arrow
+              >
                 <IconButton size="small" sx={{ color: "#b39ddb" }}>
                   <InfoIcon />
                 </IconButton>
@@ -301,7 +321,10 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip title="Disable this deployment to prevent further updates" arrow>
+              <Tooltip
+                title="Disable this deployment to prevent further updates"
+                arrow
+              >
                 <IconButton size="small" sx={{ color: "#b39ddb" }}>
                   <InfoIcon />
                 </IconButton>
@@ -320,8 +343,18 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
               />
             </div>
           </form>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "20px" }}>
-            <Tooltip title="Rollback to a previous version of the deployment" arrow>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            <Tooltip
+              title="Rollback to a previous version of the deployment"
+              arrow
+            >
               <IconButton size="small" sx={{ color: "#b39ddb" }}>
                 <InfoIcon />
               </IconButton>
