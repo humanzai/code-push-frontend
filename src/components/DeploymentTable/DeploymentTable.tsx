@@ -1,37 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import CircularProgress from "@mui/material/CircularProgress";
 import EditDeployment from "../EditDeployment/EditDeployment";
-import RollbackModal from "../RollbackModal/RollbackModal";
 import {
   getDeploymentHistory,
   rollbackDeployment,
-  rollbackToPreviousVersion,
   getDeploymentMetrics,
 } from "../../api/api";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemText from "@mui/material/ListItemText";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import Divider from "@mui/material/Divider";
-import HistoryIcon from "@mui/icons-material/History";
-import UpdateIcon from "@mui/icons-material/Update";
-import RollbackIcon from "@mui/icons-material/Undo";
 import EditIcon from "@mui/icons-material/Edit";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Box from "@mui/material/Box";
-import Switch from "@mui/material/Switch";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import Chip from "@mui/material/Chip";
-import { toast } from "react-toastify";
 import DeploymentKeysModal from "../DeploymentKeysModal/DeploymentKeysModal";
 import { getDeploymentKeys } from "../../api/api";
 import Metrics from "../Metrics/Metrics";

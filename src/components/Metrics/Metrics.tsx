@@ -1,9 +1,7 @@
 import React from "react";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import Chip from "@mui/material/Chip";
 import CircleIcon from "@mui/icons-material/Circle";
-import PieChartComponent from "./PieChartComponent"; // Import the new PieChartComponent
 
 interface MetricsProps {
   metrics: Record<string, number | null>;
@@ -50,7 +48,6 @@ const Metrics: React.FC<MetricsProps> = ({ metrics, aggregatedMetrics }) => {
           }}
         />
       ))}
-
     </Box>
   );
 };

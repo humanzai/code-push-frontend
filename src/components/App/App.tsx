@@ -8,9 +8,6 @@ import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import "./App.css";
 import { useLocation } from "wouter";
-import AppsIcon from "@mui/icons-material/Apps";
-import DeploymentKeysModal from "../DeploymentKeysModal/DeploymentKeysModal";
-import Button from "@mui/material/Button";
 
 const darkTheme = createTheme({
   typography: {
