@@ -10,8 +10,6 @@ COPY . .
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-RUN chmod +x env.sh && ./env.sh
-
 # Build the project
 RUN yarn build
 
