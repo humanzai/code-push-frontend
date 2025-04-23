@@ -94,3 +94,13 @@ export const getDeploymentKeys = async (appName: string) => {
     key: deployment.key,
   }));
 };
+
+export const getDeploymentMetrics = async (
+  appName: string,
+  deploymentName: string
+) => {
+  const response = await axios.get(
+    `/apps/${appName}/deployments/${deploymentName}/metrics`
+  );
+  return response.data;
+};

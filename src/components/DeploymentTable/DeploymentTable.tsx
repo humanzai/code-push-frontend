@@ -11,6 +11,7 @@ import {
   getDeploymentHistory,
   rollbackDeployment,
   rollbackToPreviousVersion,
+  getDeploymentMetrics,
 } from "../../api/api";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
@@ -33,6 +34,9 @@ import Chip from "@mui/material/Chip";
 import { toast } from "react-toastify";
 import DeploymentKeysModal from "../DeploymentKeysModal/DeploymentKeysModal";
 import { getDeploymentKeys } from "../../api/api";
+import Metrics from "../Metrics/Metrics";
+import PieChartComponent from "../Metrics/PieChartComponent"; // Import the PieChartComponent
+import RolloutChartComponent from "../Metrics/RolloutChartComponent"; // Import the RolloutChartComponent
 
 interface DeploymentTableProps {
   app: any;
@@ -52,6 +56,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
     { name: string; key: string }[] | null
   >(null);
   const [keysLoading, setKeysLoading] = useState(false);
+  const [deploymentMetrics, setDeploymentMetrics] = useState<any | null>(null);
 
   const handleOpenModal = (deployment) => {
     setSelectedDeployment(deployment);
@@ -80,8 +85,36 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
     }
   };
 
+  const fetchDeploymentMetrics = async () => {
+    try {
+      const currentDeployment = app.deployments[activeTab];
+      if (currentDeployment) {
+        const metrics = await getDeploymentMetrics(app.name, currentDeployment);
+
+        // Aggregate only the active installs across all versions
+        const aggregatedMetrics = Object.entries(metrics?.metrics || {}).reduce(
+          (acc, [_, value]) => {
+            acc.active += value?.active > 0 ? value?.active : 0 || 0; // Sum only the active installs
+            return acc;
+          },
+          { active: 0 }
+        );
+
+        setDeploymentMetrics({
+          aggregated: aggregatedMetrics,
+          versions: metrics?.metrics || null,
+        });
+      } else {
+        setDeploymentMetrics(null);
+      }
+    } catch (error) {
+      console.error("Error fetching deployment metrics", error);
+    }
+  };
+
   useEffect(() => {
     fetchDeploymentHistory();
+    fetchDeploymentMetrics();
   }, [app, activeTab]);
 
   const handleSort = (field: string) => {
@@ -250,6 +283,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                 flex: 1,
                 justifyContent: "space-between",
                 alignItems: "center",
+                placeContent: "center",
               }}
             >
               <Box
@@ -261,6 +295,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                   display: "flex",
                   alignItems: "center",
                   gap: "5px",
+                  placeContent: "center",
                 }}
                 onClick={() => handleSort("isMandatory")}
               >
@@ -281,6 +316,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                   display: "flex",
                   alignItems: "center",
                   gap: "5px",
+                  placeContent: "center",
                 }}
                 onClick={() => handleSort("isDisabled")}
               >
@@ -289,7 +325,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                   (sortDirection === "asc" ? (
                     <ArrowDropUpIcon />
                   ) : (
-                    <ArrowDropDownIcon />
+                    <ArrowDropDownIcon /> // Corrected closing parentheses
                   ))}
               </Box>
               <Box
@@ -301,6 +337,7 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                   display: "flex",
                   alignItems: "center",
                   gap: "5px",
+                  placeContent: "center",
                 }}
                 onClick={() => handleSort("rollout")}
               >
@@ -312,7 +349,24 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                     <ArrowDropDownIcon />
                   ))}
               </Box>
-              <Box style={{ flex: 1, textAlign: "center", minWidth: "100px" }}>
+              <Box
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  minWidth: "100px",
+                  placeContent: "center",
+                }}
+              >
+                Active Installs
+              </Box>
+              <Box
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  minWidth: "100px",
+                  placeContent: "center",
+                }}
+              >
                 Actions
               </Box>
             </Box>
@@ -353,6 +407,12 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                     <strong>Description:</strong> {row.description}
                   </Typography>
                 )}
+                {deploymentMetrics?.versions?.[row.label] && (
+                  <Metrics
+                    metrics={deploymentMetrics.versions[row.label]}
+                    aggregatedMetrics={deploymentMetrics.aggregated} // Pass aggregated metrics
+                  />
+                )}
               </Box>
               <Box
                 style={{
@@ -391,7 +451,27 @@ const DeploymentTable: React.FC<DeploymentTableProps> = ({ app, keyName }) => {
                     minWidth: "100px",
                   }}
                 >
-                  {row.rollout ? `${row.rollout}%` : "N/A"}
+                  {row.rollout ? (
+                    <RolloutChartComponent rollout={row.rollout} />
+                  ) : (
+                    "N/A"
+                  )}
+                </Box>
+                <Box
+                  style={{
+                    flex: 1,
+                    textAlign: "center",
+                    minWidth: "100px",
+                  }}
+                >
+                  {deploymentMetrics?.versions?.[row.label] && (
+                    <PieChartComponent
+                      active={
+                        deploymentMetrics.versions[row.label]?.active || 0
+                      }
+                      total={deploymentMetrics.aggregated?.active || 0}
+                    />
+                  )}
                 </Box>
                 <Box
                   style={{
