@@ -8,7 +8,7 @@
     "scripts": {
         "start": "vite",
         "dev": "vite",
-        "build": "chmod +x env.sh && ./env.sh && vite build",
+        "build": "chmod +x ./env.sh && ./env.sh && vite build",
         "preview": "vite preview"
     },
     "dependencies": {
