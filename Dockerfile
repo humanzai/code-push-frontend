@@ -1,11 +1,5 @@
 FROM node:18.18.2-alpine3.18
 
-# Copy project files
-COPY . .
-
-# Install Node dependencies
-RUN npm install
-
 # Install nginx, bash, and jq
 RUN apk add nginx bash jq
 
@@ -13,7 +7,7 @@ RUN apk add nginx bash jq
 WORKDIR /
 
 # Copy frontend build and config files
-COPY ./dist /server/dist
+COPY ./dist /dist
 COPY ./config.example.js /dist/config.example.js
 COPY ./env.sh /dist/env.sh
 
@@ -33,19 +27,21 @@ http { \
 RUN mkdir -p /etc/nginx/conf.d && echo "server { \
     listen 80; \
     server_name localhost; \
-    root /server/dist; \
+    root /dist; \
     index index.html; \
     location / { \
         try_files \$uri /index.html; \
     } \
-    location /config.js { \
-        root /dist; \
-    } \
     location /assets/ { \
-        root /server/dist; \
+        root /dist; \
         expires max; \
         access_log off; \
     } \
+    
+    location /config.js { \
+        root /dist; \
+    } \
+
     location ~* \.(js|mjs|css|html|json|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf)$ { \
         try_files \$uri =404; \
     } \
