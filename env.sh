@@ -32,20 +32,25 @@ if [[ -f .env ]]; then
     fi
   done < .env
 else
-  # If .env does not exist, read from config.example.json
-  if [[ -f config.example.json ]]; then
-    # Extract keys from config.example.json
-    keys=$(jq -r 'keys[]' config.example.json)
-    for varname in $keys; do
-      if [[ -n "$varname" ]]; then
-        value=$(printf '%s\n' "${!varname}")
-        # Use value from environment variables if available, otherwise use empty string
-        [[ -z $value ]] && value=""
-        if [[ -n "$value" ]]; then
-          echo "  \"$varname\": \"$value\"," >> ./config.js
+  # If .env does not exist, read from config.example.js
+  if [[ -f config.example.js ]]; then
+    # Extract keys from config.example.js using grep and sed
+    keys=$(awk -F: '/^[[:space:]]*["'"'"']?[A-Za-z_][A-Za-z0-9_]*["'"'"']?[[:space:]]*:/{gsub(/["'"'"']/, "", $1); print $1}' config.example.js)
+    if [[ -n "$keys" ]]; then
+      for varname in $keys; do
+        if [[ -n "$varname" ]]; then
+          value=$(printf '%s\n' "${!varname}")
+          # Use value from environment variables if available, otherwise use empty string
+          [[ -z $value ]] && value=""
+          if [[ -n "$value" ]]; then
+            echo "  \"$varname\": \"$value\"," >> ./config.js
+          fi
         fi
-      fi
-    done
+      done
+    else
+      echo "Error: Failed to extract keys from config.example.js. Ensure it is a valid JS file with key-value pairs." >&2
+      exit 1
+    fi
   fi
 fi
 
