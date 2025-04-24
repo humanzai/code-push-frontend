@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  codepush-fe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8083:80"
+    environment:
+      - NODE_ENV=development
+    networks:
+      - codepush-network
+
+networks:
+  codepush-network:
+    driver: bridge

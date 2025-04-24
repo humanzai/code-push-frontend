@@ -72,34 +72,27 @@ To interact with the backend API, you need a valid token. You can generate one u
 
 ## Configuration
 
-To customize the application, you need to create a configuration file based on the provided example.
+To customize the application, you can use a `config.js` file, environment variables, or pass parameters at runtime.
 
 ### Steps to Configure
 
-1. Locate the example configuration file (`config.example.json`) in the project directory.
-2. Copy the file and rename it to `config.json`:
+1. Create a `.env` file in the project directory to define environment variables:
    ```bash
-   cp config.example.json config.json
+   APP_TOKEN=your_token_here
+   BACKEND_URL=https://api.mycodepush.com
    ```
-3. Open `config.json` in a text editor and update the values as needed.
 
-### Example Configuration
+2. Alternatively, you can pass these parameters directly when starting the application:
+   ```bash
+   APP_TOKEN=your_token_here BACKEND_URL=https://api.mycodepush.com yarn start
+   ```
 
-```json
-{
-  "APP_TOKEN": "your_token_here",
-  "BACKEND_URL": "https://api.mycodepush.com",
-  "BASE_URL": "/api"
-}
-```
+3. Restart the application for changes to take effect.
 
 ### Fields
 
-- `apiBaseUrl`: The base URL of your backend API.
-- `authToken`: The token generated using the `code-push-standalone` CLI.
-- `featureFlags`: Optional flags to enable or disable specific features.
-
-4. Save the file and restart the application for changes to take effect.
+- `APP_TOKEN`: The token generated using the `code-push-standalone` CLI.
+- `BACKEND_URL`: The base URL of your backend API.
 
 ## Build for Production
 
@@ -112,6 +105,27 @@ yarn build
 ```
 
 The build artifacts will be stored in the `dist/` directory.
+
+## Build and Run with Docker
+
+To build and run the application using Docker:
+
+1. Build the Docker image:
+   ```bash
+   docker build -f Dockerfile . -t codepush-fe
+   ```
+
+2. Run the Docker container:
+   ```bash
+   docker run -p 8083:80 -e APP_TOKEN=your_token_here -e BACKEND_URL=https://api.mycodepush.com codepush-fe
+   ```
+
+3. Access the application at `http://localhost:8083`.
+
+You can also use a `.env` file for Docker by passing it with the `--env-file` option:
+   ```bash
+   docker run -p 8083:80 --env-file .env codepush-fe
+   ```
 
 ## Contributing
 

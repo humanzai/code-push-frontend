@@ -1,26 +1,75 @@
-# Use Node.js for building the app
-FROM node:18-alpine AS builder
+FROM node:18.18.2-alpine3.18
 
-# Set working directory
-WORKDIR /app
-
-# Copy local repository files into the container
+# Copy project files
 COPY . .
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
+# Install Node dependencies
+RUN npm install
 
-# Build the project
-RUN yarn build
+# Install nginx, bash, and jq
+RUN apk add nginx bash jq
 
-# Use Nginx for serving the app
-FROM nginx:alpine
+# Set working directory
+WORKDIR /
 
-# Copy built app to Nginx's default HTML directory
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy frontend build and config files
+COPY ./dist /server/dist
+COPY ./config.example.js /dist/config.example.js
+COPY ./env.sh /dist/env.sh
 
-# Expose the server port
+# Set permissions and copy .env if present
+RUN chmod +x /dist/env.sh
+RUN if [ -f .env ]; then cp .env /dist/.env; fi
+
+# Create base nginx config and include mime types
+RUN mkdir -p /etc/nginx && echo "events { } \
+http { \
+    include /etc/nginx/mime.types; \
+    include /etc/nginx/conf.d/*.conf; \
+    default_type application/octet-stream; \
+}" > /etc/nginx/nginx.conf
+
+# Configure nginx server with corrected /api reverse proxy
+RUN mkdir -p /etc/nginx/conf.d && echo "server { \
+    listen 80; \
+    server_name localhost; \
+    root /server/dist; \
+    index index.html; \
+    location / { \
+        try_files \$uri /index.html; \
+    } \
+    location /config.js { \
+        root /dist; \
+    } \
+    location /assets/ { \
+        root /server/dist; \
+        expires max; \
+        access_log off; \
+    } \
+    location ~* \.(js|mjs|css|html|json|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|otf)$ { \
+        try_files \$uri =404; \
+    } \
+    location /api/ { \
+        proxy_pass \$BACKEND_URL/; \
+        proxy_ssl_verify off; \
+        log_subrequest on; \
+    } \
+} \
+access_log /dev/stdout; \
+error_log /dev/stderr info;" > /etc/nginx/conf.d/default.conf
+
+# Expose the default port
 EXPOSE 80
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Run env script, extract BACKEND_URL, log it, and launch nginx
+ENTRYPOINT ["/bin/bash", "-c", "cd dist && ./env.sh && \
+  BACKEND_URL=$(awk -F'\"' '/BACKEND_URL/ {print $4}' /dist/config.js) && \
+  echo \"Extracted BACKEND_URL: $BACKEND_URL\" && \
+  # Replace variable in nginx config
+  sed -i \"s|\\$BACKEND_URL|$BACKEND_URL|g\" /etc/nginx/conf.d/default.conf && \
+  # Print the final proxy configuration for debugging
+  # Test backend connection
+  echo \"Testing connection to backend at $BACKEND_URL\" && \
+  wget -q --spider --timeout=3 $BACKEND_URL || echo \"Warning: Backend seems unreachable\" && \
+  # Start nginx in debug mode for more verbose output
+  nginx -g 'daemon off; error_log /dev/stderr debug;'"]

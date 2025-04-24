@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Recreate config file
-rm -rf ./config.json
-touch ./config.json
+rm -rf ./config.js
+touch ./config.js
 
 # Start JSON object
-echo "{" >> ./config.json
+echo "window.SERVER_CONF = {" >> ./config.js
 
 # Check if .env file exists
 if [[ -f .env ]]; then
@@ -15,17 +15,21 @@ if [[ -f .env ]]; then
   do
     # Split env variables by character `=`
     if printf '%s\n' "$line" | grep -q -e '='; then
-      varname=$(printf '%s\n' "$line" | sed -e 's/=.*//')
-      varvalue=$(printf '%s\n' "$line" | sed -e 's/^[^=]*=//')
+      varname=$(printf '%s\n' "$line" | sed -e 's/=.*//' | xargs)
+      varvalue=$(printf '%s\n' "$line" | sed -e 's/^[^=]*=//' | xargs)
     fi
 
-    # Read value of current variable if exists as Environment variable
-    value=$(printf '%s\n' "${!varname}")
-    # Otherwise use value from .env file
-    [[ -z $value ]] && value=${varvalue}
+    if [[ -n "$varname" ]]; then
+      # Read value of current variable if exists as Environment variable
+      value=$(printf '%s\n' "${!varname}")
+      # Otherwise use value from .env file
+      [[ -z $value ]] && value=${varvalue}
 
-    # Append configuration property to JS file
-    echo "  \"$varname\": \"$value\"," >> ./config.json
+      # Append configuration property to JS file if varname and value are not empty
+      if [[ -n "$value" ]]; then
+        echo "  \"$varname\": \"$value\"," >> ./config.js
+      fi
+    fi
   done < .env
 else
   # If .env does not exist, read from config.example.json
@@ -33,16 +37,24 @@ else
     # Extract keys from config.example.json
     keys=$(jq -r 'keys[]' config.example.json)
     for varname in $keys; do
-      value=$(printf '%s\n' "${!varname}")
-      # Use value from environment variables if available, otherwise use empty string
-      [[ -z $value ]] && value=""
-      echo "  \"$varname\": \"$value\"," >> ./config.json
+      if [[ -n "$varname" ]]; then
+        value=$(printf '%s\n' "${!varname}")
+        # Use value from environment variables if available, otherwise use empty string
+        [[ -z $value ]] && value=""
+        if [[ -n "$value" ]]; then
+          echo "  \"$varname\": \"$value\"," >> ./config.js
+        fi
+      fi
     done
   fi
 fi
 
-# Remove the trailing comma from the last line
-sed -i '' '$ s/,$//' ./config.json
+# Remove the trailing comma from the last line and close the object properly
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  sed -i '' '$ s/,$//' ./config.js
+else
+  sed -i '$ s/,$//' ./config.js
+fi
 
-# End JSON object
-echo "}" >> ./config.json
+# End JavaScript object
+echo "};" >> ./config.js

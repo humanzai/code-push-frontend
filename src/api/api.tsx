@@ -1,12 +1,11 @@
 import axios from "axios";
-import config from "../../config.json"; // Load configuration from static JSON file
 
 // Set the base URL for Axios
-axios.defaults.baseURL = config.BASE_URL; // Ensure all requests are prefixed with /api
+axios.defaults.baseURL = "/api"; // Ensure all requests are prefixed with /api
 
 // Middleware to add token to every request
 axios.interceptors.request.use((requestConfig) => {
-  const token = config.APP_TOKEN; // Retrieve token from config.json
+  const token = window.SERVER_CONF.APP_TOKEN; // Retrieve token from config.json
   if (token) {
     requestConfig.headers.Authorization = `Bearer ${token}`;
   }
