@@ -60,7 +60,7 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
     });
   };
 
-  const handleRolloutChange = (event: Event, newValue: number | number[]) => {
+  const handleRolloutChange = (_event: Event, newValue: number | number[]) => {
     setFormValues({
       ...formValues,
       rollout: newValue as number,
@@ -84,7 +84,12 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
         ...rest,
         rollout: rollout ? Number(rollout) : undefined,
       };
-      await updateDeploymentRelease(appName, deploymentName, payload);
+      await updateDeploymentRelease(
+        appName,
+        deploymentName,
+        row.label,
+        payload
+      );
       callback();
       toast.success("Deployment updated successfully");
     } catch (error) {
@@ -109,8 +114,8 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
       () => {
         toast.success(`Rollback to version ${row.label} initiated`);
       },
-      (error) => {
-        toast.error(`Failed to rollback to version ${row.label}: ${error}`);
+      () => {
+        toast.error(`Failed to rollback to version ${row.label}`);
       }
     );
     setOpenRollbackModal(false);

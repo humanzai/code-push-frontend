@@ -83,6 +83,7 @@ export { rollbackToPreviousVersion };
 export const updateDeploymentRelease = async (
   appName: string,
   deploymentName: string,
+  releaseLabel: string,
   packageInfo: {
     appVersion: string;
     description: string;
@@ -93,7 +94,12 @@ export const updateDeploymentRelease = async (
 ) => {
   const response = await axios.patch(
     `/apps/${appName}/deployments/${deploymentName}/release`,
-    { packageInfo }
+    {
+      packageInfo: {
+        ...packageInfo,
+        label: releaseLabel, // Include the release label inside packageInfo
+      },
+    }
   );
   return response.data;
 };
