@@ -7,382 +7,248 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import FormHelperText from "@mui/material/FormHelperText";
 import Slider from "@mui/material/Slider";
 import Typography from "@mui/material/Typography";
-import Tooltip from "@mui/material/Tooltip";
-import IconButton from "@mui/material/IconButton";
-import InfoIcon from "@mui/icons-material/Info";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
+import { toast } from "react-toastify";
 import { updateDeploymentRelease } from "../../api/api";
 import RollbackModal from "../RollbackModal/RollbackModal";
-import { toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { Release, isStagedRollout } from "../../utils/metrics";
+import { formatDateTime } from "../../utils/format";
+import { tokens } from "../../theme";
 
 interface EditDeploymentProps {
-  deployment: any;
+  appName: string;
+  deploymentName: string;
+  release: Release;
+  latest: Release | null;
   onClose: () => void;
-  callback: () => void;
-  open: boolean;
-  rollbackCallback: (
-    label: string,
-    successCallback?: () => void,
-    failCallback?: () => void
-  ) => void;
+  onSaved: () => void;
+  onRollback: (label: string) => Promise<void>;
 }
 
+// Mounted only while a release is being edited (keyed by label), so the form
+// state always starts from the release that was clicked.
 const EditDeployment: React.FC<EditDeploymentProps> = ({
-  deployment,
+  appName,
+  deploymentName,
+  release,
+  latest,
   onClose,
-  open,
-  callback,
-  rollbackCallback,
+  onSaved,
+  onRollback,
 }) => {
-  if (!deployment) {
-    return null;
-  }
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const { appName, deploymentName, row } = deployment;
-  const [formValues, setFormValues] = useState({
-    appVersion: row?.appVersion || "",
-    description: row?.description || "",
-    isMandatory: row?.isMandatory || false,
-    rollout: row?.rollout ?? null, // Default to null
-    isDisabled: row?.isDisabled || false,
-    enableRollout: row?.rollout !== null, // Toggle for rollout slider
-  });
+  const staged = isStagedRollout(release.rollout);
+  const currentRollout = staged ? (release.rollout as number) : 100;
 
-  const [openRollbackModal, setOpenRollbackModal] = useState(false);
+  const [appVersion, setAppVersion] = useState(release.appVersion || "");
+  const [description, setDescription] = useState(release.description || "");
+  const [isMandatory, setIsMandatory] = useState(!!release.isMandatory);
+  const [isDisabled, setIsDisabled] = useState(!!release.isDisabled);
+  const [rollout, setRollout] = useState(currentRollout);
+  const [saving, setSaving] = useState(false);
+  const [rollbackOpen, setRollbackOpen] = useState(false);
+  const [rollingBack, setRollingBack] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormValues({
-      ...formValues,
-      [name]: type === "checkbox" ? checked : value,
-    });
-  };
+  const isLatest = latest?.label === release.label;
+  const rollbackBlocker = !latest
+    ? "No latest release found."
+    : isLatest
+    ? "This is already the latest release."
+    : release.appVersion !== latest.appVersion
+    ? `Only releases for the same binary as the latest (${latest.appVersion}) can be rolled back to.`
+    : "";
 
-  const handleRolloutChange = (_event: Event, newValue: number | number[]) => {
-    setFormValues({
-      ...formValues,
-      rollout: newValue as number,
-    });
-  };
-
-  const handleToggleRollout = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isEnabled = e.target.checked;
-    setFormValues({
-      ...formValues,
-      enableRollout: isEnabled,
-      rollout: isEnabled ? 0 : null, // Reset rollout to 0 if enabled, null if disabled
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
-      const { rollout, ...rest } = formValues;
-      const payload: any = {
-        ...rest,
-        rollout: rollout ? Number(rollout) : undefined,
-      };
-      await updateDeploymentRelease(
-        appName,
-        deploymentName,
-        row.label,
-        payload
-      );
-      callback();
-      toast.success("Deployment updated successfully");
-    } catch (error) {
-      console.error("Error updating deployment", error);
-      toast.error("Failed to update deployment");
-    } finally {
+      // The server only allows raising the rollout of an unfinished staged
+      // rollout, and ignores an empty description / appVersion.
+      const payload: {
+        appVersion?: string;
+        description?: string;
+        isMandatory: boolean;
+        isDisabled: boolean;
+        rollout?: number;
+      } = { isMandatory, isDisabled };
+      if (appVersion.trim()) payload.appVersion = appVersion.trim();
+      if (description.trim()) payload.description = description.trim();
+      if (staged && rollout > currentRollout) payload.rollout = rollout;
+
+      await updateDeploymentRelease(appName, deploymentName, release.label, payload);
+      toast.success(`${release.label} updated`);
+      onSaved();
       onClose();
+    } catch (error: any) {
+      console.error("Error updating deployment", error);
+      toast.error(`Failed to update ${release.label}: ${error?.message || "unknown error"}`);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleRollback = () => {
-    setOpenRollbackModal(true);
-  };
-
-  const handleCloseRollbackModal = () => {
-    setOpenRollbackModal(false);
-  };
-
-  const handleConfirmRollback = () => {
-    rollbackCallback(
-      row.label,
-      () => {
-        toast.success(`Rollback to version ${row.label} initiated`);
-      },
-      () => {
-        toast.error(`Failed to rollback to version ${row.label}`);
-      }
-    );
-    setOpenRollbackModal(false);
-    onClose();
+  const handleConfirmRollback = async () => {
+    setRollingBack(true);
+    try {
+      await onRollback(release.label);
+      toast.success(`${deploymentName} rolled back to ${release.label} (published as a new release)`);
+      setRollbackOpen(false);
+      onClose();
+    } catch (error: any) {
+      console.error("Error during rollback:", error);
+      toast.error(`Rollback to ${release.label} failed: ${error?.message || "unknown error"}`);
+      setRollbackOpen(false);
+    } finally {
+      setRollingBack(false);
+    }
   };
 
   return (
     <>
       <Dialog
-        open={open}
-        onClose={onClose}
+        open
+        onClose={saving ? undefined : onClose}
         fullWidth
         maxWidth="sm"
-        PaperProps={{
-          style: {
-            backgroundColor: "#2c2c3e", // Purple-ish background
-            color: "white",
-            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)", // Subtle shadow for depth
-          },
-        }}
-        BackdropProps={{
-          style: {
-            backgroundColor: "rgba(0, 0, 0, 0.8)", // Semi-transparent backdrop
-          },
-        }}
+        fullScreen={fullScreen}
+        aria-labelledby="edit-release-title"
       >
-        <DialogTitle style={{ backgroundColor: "#2c2c3e", color: "white" }}>
-          Edit Deployment
+        <DialogTitle id="edit-release-title" sx={{ pb: 0.5 }}>
+          Edit {release.label}
         </DialogTitle>
-        <DialogContent style={{ backgroundColor: "#2c2c3e", color: "white" }}>
-          <div style={{ marginBottom: "20px", marginTop: "10px" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                borderRadius: "8px",
-                overflow: "hidden",
-                backgroundColor: "#2c2c3e",
-              }}
-            >
-              <tbody>
-                {[
-                  { label: "App Name", value: deployment.appName },
-                  {
-                    label: "Deployment Name",
-                    value: deployment.deploymentName,
-                  },
-                  {
-                    label: "App Version",
-                    value: deployment.row?.appVersion || "N/A",
-                  },
-                  {
-                    label: "Description",
-                    value: deployment.row?.description || "N/A",
-                  },
-                  {
-                    label: "Mandatory",
-                    value: deployment.row?.isMandatory ? "Yes" : "No",
-                  },
-                  { label: "Rollout", value: deployment.row?.rollout || "N/A" },
-                  {
-                    label: "Disabled",
-                    value: deployment.row?.isDisabled ? "Yes" : "No",
-                  },
-                ].map((row, index) => (
-                  <tr key={index}>
-                    <td
-                      style={{
-                        fontWeight: "bold",
-                        padding: "8px",
-                        border: "1px solid #4a4a5e",
-                        color: "#b39ddb",
-                      }}
-                    >
-                      {row.label}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px",
-                        border: "1px solid #4a4a5e",
-                        color: "white",
-                      }}
-                    >
-                      {row.value}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <form
+        <Typography variant="body2" sx={{ px: 3, color: tokens.textMuted }}>
+          {appName} · {deploymentName} · released {formatDateTime(release.uploadTime)}
+          {isLatest ? " · latest" : ""}
+        </Typography>
+        <DialogContent>
+          <Box
+            component="form"
+            id="edit-release-form"
             onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+            sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip
-                title="Specify the version of the app for this deployment"
-                arrow
-              >
-                <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
-              <TextField
-                label="App Version"
-                name="appVersion"
-                value={formValues.appVersion}
-                onChange={handleChange}
-                fullWidth
-                variant="outlined"
-                InputProps={{
-                  style: { backgroundColor: "#2c2c3e", color: "white" },
-                }}
-                InputLabelProps={{
-                  style: { color: "#b39ddb" },
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip title="Provide a description for this deployment" arrow>
-                <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
-              <TextField
-                label="Description"
-                name="description"
-                value={formValues.description}
-                onChange={handleChange}
-                fullWidth
-                variant="outlined"
-                InputProps={{
-                  style: { backgroundColor: "#2c2c3e", color: "white" },
-                }}
-                InputLabelProps={{
-                  style: { color: "#b39ddb" },
-                }}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip
-                title="Enable gradual rollout of the deployment to a percentage of users"
-                arrow
-              >
-                <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formValues.enableRollout}
-                    onChange={handleToggleRollout}
-                    name="enableRollout"
-                    color="primary"
-                  />
-                }
-                label="Enable Rollout"
-                style={{ color: "white" }}
-              />
-            </div>
-            {formValues.enableRollout && (
-              <div
-                style={{ padding: "10px 0", width: "80%", margin: "0 auto" }}
-              >
-                <Typography
-                  style={{ color: "#b39ddb", marginBottom: "10px" }}
-                  variant="body2"
-                >
-                  Rollout Percentage
+            <TextField
+              label="Target binary version"
+              value={appVersion}
+              onChange={(e) => setAppVersion(e.target.value)}
+              fullWidth
+              helperText="Store app version (or range) this update is offered to, e.g. 3.22.9"
+            />
+            <TextField
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              fullWidth
+              multiline
+              minRows={2}
+              helperText="Shown to users for update prompts. Can't be cleared once set."
+            />
+
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                Rollout
+              </Typography>
+              {staged ? (
+                <>
+                  <Box sx={{ px: 1 }}>
+                    <Slider
+                      value={rollout}
+                      onChange={(_e, v) => setRollout(Math.max(currentRollout, v as number))}
+                      valueLabelDisplay="auto"
+                      valueLabelFormat={(v) => `${v}%`}
+                      step={1}
+                      min={0}
+                      max={100}
+                      marks={[
+                        { value: currentRollout, label: `${currentRollout}% now` },
+                        { value: 100, label: "100%" },
+                      ]}
+                      aria-label="Rollout percentage"
+                    />
+                  </Box>
+                  <FormHelperText>
+                    {rollout}% of devices allowed. Rollout can only go up; 100%
+                    finishes the staged rollout.
+                  </FormHelperText>
+                </>
+              ) : (
+                <Typography variant="body2" sx={{ color: tokens.textSecondary }}>
+                  100% of devices allowed. The rollout can only be changed while
+                  a staged rollout is in progress (set at release time with{" "}
+                  <code>--rollout</code>).
                 </Typography>
-                <Slider
-                  value={formValues.rollout || 0} // Default to 0 if null
-                  onChange={handleRolloutChange}
-                  aria-labelledby="rollout-slider"
-                  valueLabelDisplay="auto"
-                  step={1}
-                  marks={[
-                    { value: 0, label: "0%" },
-                    { value: 100, label: "100%" },
-                  ]}
-                  min={0}
-                  max={100}
-                  style={{ color: "#7c4dff" }}
-                />
-              </div>
-            )}
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip
-                title="Mark this deployment as mandatory for all users"
-                arrow
-              >
-                <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
+              )}
+            </Box>
+
+            <Box>
               <FormControlLabel
                 control={
-                  <Switch
-                    checked={formValues.isMandatory}
-                    onChange={handleChange}
-                    name="isMandatory"
-                    color="primary"
-                  />
+                  <Switch checked={isMandatory} onChange={(e) => setIsMandatory(e.target.checked)} />
                 }
-                label="Mandatory Update"
-                style={{ color: "white" }}
+                label="Mandatory update"
               />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <Tooltip
-                title="Disable this deployment to prevent further updates"
-                arrow
-              >
-                <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                  <InfoIcon />
-                </IconButton>
-              </Tooltip>
+              <FormHelperText sx={{ mt: -0.5 }}>
+                Devices install it right away instead of on the next restart.
+              </FormHelperText>
+            </Box>
+            <Box>
               <FormControlLabel
                 control={
-                  <Switch
-                    checked={formValues.isDisabled}
-                    onChange={handleChange}
-                    name="isDisabled"
-                    color="primary"
-                  />
+                  <Switch checked={isDisabled} onChange={(e) => setIsDisabled(e.target.checked)} />
                 }
                 label="Disabled"
-                style={{ color: "white" }}
               />
-            </div>
-          </form>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginTop: "20px",
-            }}
+              <FormHelperText sx={{ mt: -0.5 }}>
+                Disabled releases are not offered to any device.
+                {isLatest && isDisabled && !release.isDisabled
+                  ? " Disabling the latest release stops it from reaching new devices."
+                  : ""}
+              </FormHelperText>
+            </Box>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="subtitle2">Roll back to this release</Typography>
+          <Typography variant="body2" sx={{ color: tokens.textSecondary, mt: 0.5, mb: 1.5 }}>
+            Publishes a copy of {release.label} as a new release on {deploymentName}.
+          </Typography>
+          <Button
+            variant="outlined"
+            color="warning"
+            onClick={() => setRollbackOpen(true)}
+            disabled={!!rollbackBlocker || saving}
           >
-            <Tooltip
-              title="Rollback to a previous version of the deployment"
-              arrow
-            >
-              <IconButton size="small" sx={{ color: "#b39ddb" }}>
-                <InfoIcon />
-              </IconButton>
-            </Tooltip>
-            <Button variant="contained" onClick={handleRollback}>
-              Rollback to this Version
-            </Button>
-          </div>
+            Roll back to {release.label}
+          </Button>
+          {rollbackBlocker && <FormHelperText>{rollbackBlocker}</FormHelperText>}
         </DialogContent>
-        <DialogActions>
-          <Button type="button" variant="text" onClick={onClose}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button type="button" variant="text" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" variant="contained" onClick={handleSubmit}>
-            Save
+          <Button type="submit" form="edit-release-form" variant="contained" disabled={saving}>
+            {saving ? "Saving…" : "Save"}
           </Button>
         </DialogActions>
       </Dialog>
       <RollbackModal
-        open={openRollbackModal}
-        onClose={handleCloseRollbackModal}
+        open={rollbackOpen}
+        onClose={() => setRollbackOpen(false)}
         onConfirm={handleConfirmRollback}
-        versionToRollback={row.label}
+        versionToRollback={release.label}
+        latestLabel={latest?.label}
+        deploymentName={deploymentName}
+        busy={rollingBack}
       />
     </>
   );

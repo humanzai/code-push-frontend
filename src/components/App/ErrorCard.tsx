@@ -1,41 +1,47 @@
 import React from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { SurfaceCard } from "../common/ui";
+import { tokens } from "../../theme";
 
 interface ErrorCardProps {
   title?: string;
   message: string;
+  onRetry?: () => void;
 }
 
-const ErrorCard: React.FC<ErrorCardProps> = ({ title = "Error", message }) => (
-  <Box
+const ErrorCard: React.FC<ErrorCardProps> = ({
+  title = "Error",
+  message,
+  onRetry,
+}) => (
+  <SurfaceCard
     sx={{
-      backgroundColor: "#2c2c3e",
-      borderRadius: "8px",
-      boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.3)",
-      padding: "40px 32px",
+      maxWidth: 600,
+      mx: "auto",
+      textAlign: "center",
+      py: 5,
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      gap: 2,
-      minWidth: 350,
-      width: "100%",
-      maxWidth: 600,
-      mx: 2, // horizontal margin
+      gap: 1.5,
     }}
   >
-    <Typography
-      variant="h5"
-      sx={{ color: "#ff6f61", fontWeight: "bold", mb: 2 }}
-    >
+    <ErrorOutlineIcon sx={{ fontSize: 40, color: tokens.error }} />
+    <Typography variant="h6" component="h1" sx={{ color: tokens.error }}>
       {title}
     </Typography>
-    <Typography
-      variant="body1"
-      sx={{ color: "white", textAlign: "center", mb: 2 }}
-    >
+    <Typography variant="body2" sx={{ color: tokens.textSecondary }} role="alert">
       {message}
     </Typography>
-  </Box>
+    {onRetry && (
+      <Box sx={{ mt: 1 }}>
+        <Button variant="contained" onClick={onRetry}>
+          Try again
+        </Button>
+      </Box>
+    )}
+  </SurfaceCard>
 );
 
 export default ErrorCard;
