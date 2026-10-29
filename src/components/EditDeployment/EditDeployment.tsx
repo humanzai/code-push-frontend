@@ -141,7 +141,7 @@ const EditDeployment: React.FC<EditDeploymentProps> = ({
               value={appVersion}
               onChange={(e) => setAppVersion(e.target.value)}
               fullWidth
-              helperText="Store app version (or range) this update is offered to, e.g. 3.22.9"
+              helperText="Store app version (or range) this update is offered to, e.g. 1.4.0"
             />
             <TextField
               label="Description"

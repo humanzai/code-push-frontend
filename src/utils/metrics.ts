@@ -7,7 +7,7 @@
 //              reported, so on the latest release active is close to installed.
 // - downloaded: separate fire-and-forget report, often lost -> under-reported.
 // - failed:    rollbacks (update crashed, device reverted).
-// Keys that are not labels (e.g. "3.22.9") are devices running the plain
+// Keys that are not labels (e.g. "1.4.0") are devices running the plain
 // binary of that version with no update applied; they only have `active`.
 // `rollout` is a release setting (% of devices allowed), not progress.
 
