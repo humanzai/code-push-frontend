@@ -5,12 +5,22 @@ axios.defaults.baseURL = "/api"; // Ensure all requests are prefixed with /api
 
 // Middleware to add token to every request
 axios.interceptors.request.use((requestConfig) => {
-  const token = window.SERVER_CONF.APP_TOKEN; // Retrieve token from config.json
+  const token = window.SERVER_CONF?.APP_TOKEN; // Set by /config.js
   if (token) {
     requestConfig.headers.Authorization = `Bearer ${token}`;
   }
   return requestConfig;
 });
+
+const enc = encodeURIComponent;
+
+// The server answers errors with plain text (or sometimes JSON).
+export const apiErrorMessage = (error: any, fallback = "Request failed") => {
+  const data = error?.response?.data;
+  if (typeof data === "string" && data.trim()) return data.trim();
+  if (data?.message) return data.message;
+  return error?.message || fallback;
+};
 
 export const getApps = async () => {
   try {
@@ -18,33 +28,31 @@ export const getApps = async () => {
     return response.data;
   } catch (error: any) {
     if (error.response && error.response.status === 401) {
-      // If the response is plain text, not JSON
-      const message =
-        typeof error.response.data === "string"
-          ? error.response.data
-          : error.response.data?.message || "Unauthorized";
-      throw new Error(message);
+      throw new Error(apiErrorMessage(error, "Unauthorized"));
     }
     throw error;
   }
 };
 
+// Returned oldest first; the last entry is the current (latest) release.
 export const getDeploymentHistory = async (
   appName: string,
   deploymentName: string
 ) => {
   const response = await axios.get(
-    `/apps/${appName}/deployments/${deploymentName}/history`
+    `/apps/${enc(appName)}/deployments/${enc(deploymentName)}/history`
   );
-  return response?.data?.history;
+  return response?.data?.history || [];
 };
 
+// Rolls the deployment back to `label` by publishing a copy of it as a new
+// release. The server reads the target from the URL path (a body is ignored,
+// which used to make every rollback go to the previous release instead).
 export const rollbackDeployment = async (
   appName: string,
   deploymentName: string,
   label: string
 ) => {
-  // Fetch deployment history to validate app version
   const history = await getDeploymentHistory(appName, deploymentName);
   const targetVersion = history.find((entry: any) => entry.label === label);
 
@@ -52,60 +60,56 @@ export const rollbackDeployment = async (
     throw new Error(`Label ${label} not found in deployment history.`);
   }
 
-  const currentVersion = history[0]?.appVersion; // Assuming the first entry is the latest
-  if (targetVersion.appVersion !== currentVersion) {
+  const latest = history[history.length - 1];
+  if (latest?.label === label) {
+    throw new Error(`${label} is already the latest release.`);
+  }
+  if (targetVersion.appVersion !== latest?.appVersion) {
     throw new Error(
-      `Cannot perform rollback to a different app version. Current: ${currentVersion}, Target: ${targetVersion.appVersion}`
+      `Cannot roll back to a different app version. Latest targets ${latest?.appVersion}, ${label} targets ${targetVersion.appVersion}.`
     );
   }
 
-  // Perform rollback if app versions match
-  await axios.post(`/apps/${appName}/deployments/${deploymentName}/rollback`, {
-    label,
-  });
+  try {
+    const response = await axios.post(
+      `/apps/${enc(appName)}/deployments/${enc(deploymentName)}/rollback/${enc(label)}`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(apiErrorMessage(error, "Rollback failed"));
+  }
 };
-
-const rollbackToPreviousVersion = async (
-  appName: string,
-  deploymentName: string,
-  version?: string
-) => {
-  const response = await axios.post(
-    `/apps/${appName}/deployments/${deploymentName}/rollback${
-      version ? `/${version}` : ""
-    }`
-  );
-  return response.data;
-};
-
-export { rollbackToPreviousVersion };
 
 export const updateDeploymentRelease = async (
   appName: string,
   deploymentName: string,
   releaseLabel: string,
   packageInfo: {
-    appVersion: string;
-    description: string;
-    isMandatory: boolean;
-    rollout: number;
-    isDisabled: boolean;
+    appVersion?: string;
+    description?: string;
+    isMandatory?: boolean;
+    rollout?: number;
+    isDisabled?: boolean;
   }
 ) => {
-  const response = await axios.patch(
-    `/apps/${appName}/deployments/${deploymentName}/release`,
-    {
-      packageInfo: {
-        ...packageInfo,
-        label: releaseLabel, // Include the release label inside packageInfo
-      },
-    }
-  );
-  return response.data;
+  try {
+    const response = await axios.patch(
+      `/apps/${enc(appName)}/deployments/${enc(deploymentName)}/release`,
+      {
+        packageInfo: {
+          ...packageInfo,
+          label: releaseLabel, // Include the release label inside packageInfo
+        },
+      }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(apiErrorMessage(error, "Update failed"));
+  }
 };
 
 export const getDeploymentKeys = async (appName: string) => {
-  const response = await axios.get(`/apps/${appName}/deployments`);
+  const response = await axios.get(`/apps/${enc(appName)}/deployments`);
   return response.data.deployments.map((deployment: any) => ({
     name: deployment.name,
     key: deployment.key,
@@ -117,7 +121,7 @@ export const getDeploymentMetrics = async (
   deploymentName: string
 ) => {
   const response = await axios.get(
-    `/apps/${appName}/deployments/${deploymentName}/metrics`
+    `/apps/${enc(appName)}/deployments/${enc(deploymentName)}/metrics`
   );
   return response.data;
 };

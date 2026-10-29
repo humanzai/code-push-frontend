@@ -11,6 +11,9 @@ interface RollbackModalProps {
   onClose: () => void;
   onConfirm: () => void;
   versionToRollback: string;
+  latestLabel?: string;
+  deploymentName?: string;
+  busy?: boolean;
 }
 
 const RollbackModal: React.FC<RollbackModalProps> = ({
@@ -18,22 +21,41 @@ const RollbackModal: React.FC<RollbackModalProps> = ({
   onClose,
   onConfirm,
   versionToRollback,
+  latestLabel,
+  deploymentName,
+  busy = false,
 }) => {
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Rollback Confirmation</DialogTitle>
+    <Dialog
+      open={open}
+      onClose={busy ? undefined : onClose}
+      fullWidth
+      maxWidth="xs"
+      aria-labelledby="rollback-title"
+    >
+      <DialogTitle id="rollback-title">
+        Roll back to {versionToRollback}?
+      </DialogTitle>
       <DialogContent>
         <Typography variant="body1">
-          Are you sure you want to rollback to the previous version -{" "}
-          {versionToRollback}?
+          This publishes a copy of {versionToRollback} as a new release
+          {deploymentName ? ` on ${deploymentName}` : ""}.
+          {latestLabel
+            ? ` Devices on ${latestLabel} move to it on their next update check.`
+            : ""}
         </Typography>
       </DialogContent>
-      <DialogActions>
-        <Button variant="text" color="secondary" onClick={onClose}>
-          No
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button variant="text" onClick={onClose} disabled={busy}>
+          Cancel
         </Button>
-        <Button variant="contained" color="primary" onClick={onConfirm}>
-          Yes
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          {busy ? "Rolling back…" : `Roll back to ${versionToRollback}`}
         </Button>
       </DialogActions>
     </Dialog>
